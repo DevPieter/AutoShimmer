@@ -1,0 +1,12 @@
+{
+	"Name": "Auto Shimmer",
+	"ID": "auto shimmer",
+	"Author": "DevPieter",
+	"Description": "Automatically collects shimmers for you.",
+	"ModVersion": 1.2,
+	"GameVersion": 2.053,
+	"Date": "01/01/2026",
+	"Dependencies": [],
+	"Disabled": 1,
+	"AllowSteamAchievs": true
+}
