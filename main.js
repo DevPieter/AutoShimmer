@@ -2,219 +2,243 @@
 // Game.gainBuff('click frenzy',Math.ceil(13),777)
 
 Game.registerMod("auto shimmer", {
-	init: function () {
+    init: function () {
 
-		this._legitMode = false;
+        const utilize = Game.mods["utilize"];
+        if (!utilize) Game.Notify("Auto Shimmer", "Utilize mod not found. This mod is required for full functionality.", [16, 5]);
 
-		this._configVersion = 1;
-		this._configSuccessfullyLoaded = false;
+        this._legitMode = false;
 
-		this.shouldNotify = true;
-		this.shouldAutoAccept = false;
+        this._configVersion = 1;
+        this._configSuccessfullyLoaded = false;
 
-		this.shimmersClickedAutoTotal = 0;
-		this.shimmersClickedAutoSession = 0;
-		this.shimmersClickedManualTotal = 0;
-		this.shimmersClickedManualSession = 0;
+        this.shouldNotify = true;
+        this.shouldAutoAccept = false;
 
-		if (!Game._autoShimmerHooked) {
-			Game._autoShimmerHooked = true;
-			this.initHooks();
-		}
+        this.shimmersClickedAutoTotal = 0;
+        this.shimmersClickedAutoSession = 0;
+        this.shimmersClickedManualTotal = 0;
+        this.shimmersClickedManualSession = 0;
 
-		this.initShimmerDisplay();
-		Game.Notify("Auto Shimmer", "Auto Shimmer mod loaded.", [16, 5], 6, true);
-	},
-	save: function () {
-		return JSON.stringify({
-			// Version
-			v: 1,
+        if (!Game._autoShimmerHooked) {
+            Game._autoShimmerHooked = true;
+            this.initHooks();
+        }
 
-			// Settings
-			se: {
-				sn: this.shouldNotify,
-				saa: this.shouldAutoAccept
-			},
+        if (utilize) utilize.subscribeToMenu((block, menu) => {
+            const category = utilize.writeCategoryBlock(block, 'Auto Shimmer');
 
-			// Statistics
-			st: {
-				scat: this.shimmersClickedAutoTotal,
-				scmt: this.shimmersClickedManualTotal
-			}
-		});
-	},
-	load: function (str) {
-		if (!str) return;
+            if (!this._legitMode) utilize.writeButton(
+                category,
+                'autoShimmers_AutoAccept',
+                'Auto-accept',
+                () => this.shouldAutoAccept,
+                () => this.setAutoAccept(!this.shouldAutoAccept)
+            );
 
-		const objOld = JSON.parse(str);
-		const obj = Object.assign({}, objOld);
+            utilize.writeButton(
+                category,
+                'autoShimmers_Notifications',
+                'Notifications',
+                () => this.shouldNotify,
+                () => this.shouldNotify = !this.shouldNotify
+            );
+        });
 
-		/* Version migration */
-		const oldVersion = objOld.v || 0;
+        this.initShimmerDisplay();
+        Game.Notify("Auto Shimmer", "Auto Shimmer mod loaded.", [16, 5], 6, true);
+    },
+    save: function () {
+        return JSON.stringify({
+            // Version
+            v: 1,
 
-		let modified = false;
-		let modifiedTo = oldVersion;
+            // Settings
+            se: {
+                sn: this.shouldNotify,
+                saa: this.shouldAutoAccept
+            },
 
-		// Convert from version 0 to version 1
-		if (oldVersion === 0) {
+            // Statistics
+            st: {
+                scat: this.shimmersClickedAutoTotal,
+                scmt: this.shimmersClickedManualTotal
+            }
+        });
+    },
+    load: function (str) {
+        if (!str) return;
 
-			obj.se = {
-				sn: objOld.sn !== undefined ? objOld.sn : true,
-				saa: objOld.saa !== undefined ? objOld.saa : true
-			};
+        const objOld = JSON.parse(str);
+        const obj = Object.assign({}, objOld);
 
-			obj.st = {
-				scat: 0,
-				scat: objOld.sct || 0
-			};
+        /* Version migration */
+        const oldVersion = objOld.v || 0;
 
-			delete obj.sn;
-			delete obj.saa;
-			delete obj.sct;
+        let modified = false;
+        let modifiedTo = oldVersion;
 
-			obj.v = 1;
+        // Convert from version 0 to version 1
+        if (oldVersion === 0) {
 
-			modified = true;
-			modifiedTo = 1;
-		}
+            obj.se = {
+                sn: objOld.sn !== undefined ? objOld.sn : true,
+                saa: objOld.saa !== undefined ? objOld.saa : true
+            };
 
-		if (modified) {
-			Game.Notify("Auto Shimmer", `Config migrated from version ${oldVersion} to version ${modifiedTo}.`, [16, 5], 6, true);
-		}
+            obj.st = {
+                scat: 0,
+                scat: objOld.sct || 0
+            };
 
-		/* Version checks */
+            delete obj.sn;
+            delete obj.saa;
+            delete obj.sct;
 
-		// Check if version is higher than expected
-		if (obj.v > this._configVersion) {
-			Game.Notify("Auto Shimmer", "Config version is newer than expected. The mod may be outdated.", [16, 5], 1, true);
-			return;
-		}
+            obj.v = 1;
 
-		// Check if version is lower than expected
-		if (obj.v < this._configVersion) {
-			Game.Notify("Auto Shimmer", "Config version is older than expected. The mod may have been updated.", [16, 5], 1, true);
-			return;
-		}
+            modified = true;
+            modifiedTo = 1;
+        }
 
-		/* Load */
+        if (modified) {
+            Game.Notify("Auto Shimmer", `Config migrated from version ${oldVersion} to version ${modifiedTo}.`, [16, 5], 6, true);
+        }
 
-		if (obj.se) {
-			this.shouldNotify = obj.se.sn !== undefined ? obj.se.sn : true;
-			this.shouldAutoAccept = obj.se.saa !== undefined ? obj.se.saa : true;
-		}
+        /* Version checks */
 
-		this.shouldAutoAccept = this.shouldAutoAccept && !this._legitMode;
+        // Check if version is higher than expected
+        if (obj.v > this._configVersion) {
+            Game.Notify("Auto Shimmer", "Config version is newer than expected. The mod may be outdated.", [16, 5], 1, true);
+            return;
+        }
 
-		if (obj.st) {
-			this.shimmersClickedAutoTotal = obj.st.scat !== undefined ? obj.st.scat : 0;
-			this.shimmersClickedManualTotal = obj.st.scmt !== undefined ? obj.st.scmt : 0;
-		}
+        // Check if version is lower than expected
+        if (obj.v < this._configVersion) {
+            Game.Notify("Auto Shimmer", "Config version is older than expected. The mod may have been updated.", [16, 5], 1, true);
+            return;
+        }
 
-		this._configSuccessfullyLoaded = true;
-		this.updateShimmerDisplay();
-	},
-	initHooks: function () {
-		this._prototypeInit = Game.shimmer.prototype.init;
-		this._prototypePop = Game.shimmer.prototype.pop;
-		this._gainBuff = Game.gainBuff;
+        /* Load */
 
-		const MOD = this;
+        if (obj.se) {
+            this.shouldNotify = obj.se.sn !== undefined ? obj.se.sn : true;
+            this.shouldAutoAccept = obj.se.saa !== undefined ? obj.se.saa : true;
+        }
 
-		Game.shimmer.prototype.init = function () {
-			const result = MOD._prototypeInit.apply(this, arguments);
-			if (MOD.shouldNotify) {
-				PlaySound('snd/choir.mp3', 1);
-				Game.Notify("Auto Shimmer", "A shimmer appeared!", [16, 5], 3, true);
-			}
+        this.shouldAutoAccept = this.shouldAutoAccept && !this._legitMode;
 
-			if (MOD.shouldAutoAccept) setTimeout(() => {
-				if (!Game.shimmers.includes(this)) return;
+        if (obj.st) {
+            this.shimmersClickedAutoTotal = obj.st.scat !== undefined ? obj.st.scat : 0;
+            this.shimmersClickedManualTotal = obj.st.scmt !== undefined ? obj.st.scmt : 0;
+        }
 
-				this.autoPopped = true;
-				this.pop();
-			}, 1000);
+        this._configSuccessfullyLoaded = true;
+        this.updateShimmerDisplay();
+    },
+    initHooks: function () {
+        this._prototypeInit = Game.shimmer.prototype.init;
+        this._prototypePop = Game.shimmer.prototype.pop;
+        this._gainBuff = Game.gainBuff;
 
-			return result;
-		};
+        const MOD = this;
 
-		Game.shimmer.prototype.pop = function () {
-			const wasAuto = this.autoPopped === true;
-			this.autoPopped = false;
+        Game.shimmer.prototype.init = function () {
+            const result = MOD._prototypeInit.apply(this, arguments);
+            if (MOD.shouldNotify) {
+                PlaySound('snd/choir.mp3', 1);
+                Game.Notify("Auto Shimmer", "A shimmer appeared!", [16, 5], 3, true);
+            }
 
-			const result = MOD._prototypePop.apply(this, arguments);
+            if (MOD.shouldAutoAccept) setTimeout(() => {
+                if (!Game.shimmers.includes(this)) return;
 
-			if (wasAuto) {
-				MOD.shimmersClickedAutoTotal += 1;
-				MOD.shimmersClickedAutoSession += 1;
-			} else {
-				MOD.shimmersClickedManualTotal += 1;
-				MOD.shimmersClickedManualSession += 1;
-			}
+                this.autoPopped = true;
+                this.pop();
+            }, 1000);
 
-			MOD.updateShimmerDisplay();
-			return result;
-		};
+            return result;
+        };
 
-		Game.gainBuff = function (type, time, arg1, arg2, arg3) {
-			const result = MOD._gainBuff.apply(this, arguments);
-			if (!MOD.shouldNotify) return result;
+        Game.shimmer.prototype.pop = function () {
+            const wasAuto = this.autoPopped === true;
+            this.autoPopped = false;
 
-			// Game.Notify("TESTING", `${type}`, [16, 5]);
-			if (type === 'click frenzy') PlaySound('snd/spell.mp3', 1);
+            const result = MOD._prototypePop.apply(this, arguments);
 
-			return result;
-		};
-	},
-	setAutoAccept: function (value) {
-		if (this._legitMode) value = false;
+            if (wasAuto) {
+                MOD.shimmersClickedAutoTotal += 1;
+                MOD.shimmersClickedAutoSession += 1;
+            } else {
+                MOD.shimmersClickedManualTotal += 1;
+                MOD.shimmersClickedManualSession += 1;
+            }
 
-		this.shouldAutoAccept = value;
-		this.updateShimmerDisplay();
+            MOD.updateShimmerDisplay();
+            return result;
+        };
 
-		Game.Notify("Auto Shimmer", `Auto-accept is now ${value ? 'enabled' : 'disabled'}.`, [16, 5], 2, true);
-	},
-	initShimmerDisplay: function () {
-		if (l('autoShimmers_ShimmersClicked')) return;
+        Game.gainBuff = function (type, time, arg1, arg2, arg3) {
+            const result = MOD._gainBuff.apply(this, arguments);
+            if (!MOD.shouldNotify) return result;
 
-		const span = document.createElement('span');
-		span.id = 'autoShimmers_ShimmersClicked';
-		span.style.fontSize = '10px';
-		span.style.marginLeft = '10px';
-		span.style.cursor = 'pointer';
+            // Game.Notify("TESTING", `${type}`, [16, 5]);
+            if (type === 'click frenzy') PlaySound('snd/spell.mp3', 1);
 
-		l('versionNumber').appendChild(span);
-		this.updateShimmerDisplay();
+            return result;
+        };
+    },
+    setAutoAccept: function (value) {
+        if (this._legitMode) value = false;
 
-		AddEvent(l('autoShimmers_ShimmersClicked'), 'click', () => {
-			if (!this._legitMode) this.setAutoAccept(!this.shouldAutoAccept);
-		});
-	},
-	updateShimmerDisplay: function () {
-		const display = l('autoShimmers_ShimmersClicked');
-		if (!display) return;
+        this.shouldAutoAccept = value;
+        this.updateShimmerDisplay();
+    },
+    initShimmerDisplay: function () {
+        if (l('autoShimmers_ShimmersClicked')) return;
 
-		let tooltip = `<div style="padding:8px;width:250px;">`;
+        const span = document.createElement('span');
+        span.id = 'autoShimmers_ShimmersClicked';
+        span.style.fontSize = '10px';
+        span.style.marginLeft = '10px';
+        span.style.cursor = 'pointer';
 
-		if (this._legitMode) {
-			display.textContent = `Shimmers clicked: ${this.shimmersClickedManualSession}`;
+        l('versionNumber').appendChild(span);
+        this.updateShimmerDisplay();
 
-			tooltip += `Shimmers clicked this session: <b>${this.shimmersClickedManualSession}</b><br>`;
-			tooltip += `Total shimmers clicked: <b>${this.shimmersClickedManualTotal}</b>`;
-		} else {
-			display.textContent = `Shimmers clicked: ${this.shimmersClickedAutoSession + this.shimmersClickedManualSession}`;
+        AddEvent(l('autoShimmers_ShimmersClicked'), 'click', () => {
+            if (this._legitMode) return;
 
-			tooltip += `Shimmers clicked this session:<br>`;
-			tooltip += `&emsp;Auto: <b>${this.shimmersClickedAutoSession}</b><br>`;
-			tooltip += `&emsp;Manual: <b>${this.shimmersClickedManualSession}</b><br><br>`;
-			tooltip += `Total shimmers clicked:<br>`;
-			tooltip += `&emsp;Auto: <b>${this.shimmersClickedAutoTotal}</b><br>`;
-			tooltip += `&emsp;Manual: <b>${this.shimmersClickedManualTotal}</b>`;
-		}
+            this.setAutoAccept(!this.shouldAutoAccept);
+            Game.Notify("Auto Shimmer", `Auto-accept is now ${value ? 'enabled' : 'disabled'}.`, [16, 5], 2, true);
+        });
+    },
+    updateShimmerDisplay: function () {
+        const display = l('autoShimmers_ShimmersClicked');
+        if (!display) return;
 
-		tooltip += `</div>`;
-		Game.attachTooltip(l('autoShimmers_ShimmersClicked'), tooltip, 'this');
+        let tooltip = `<div style="padding:8px;width:250px;">`;
 
-		if (this.shouldAutoAccept) l('autoShimmers_ShimmersClicked').style.color = '#73ff73';
-		else l('autoShimmers_ShimmersClicked').style.color = '';
-	},
+        if (this._legitMode) {
+            display.textContent = `Shimmers clicked: ${this.shimmersClickedManualSession}`;
+
+            tooltip += `Shimmers clicked this session: <b>${this.shimmersClickedManualSession}</b><br>`;
+            tooltip += `Total shimmers clicked: <b>${this.shimmersClickedManualTotal}</b>`;
+        } else {
+            display.textContent = `Shimmers clicked: ${this.shimmersClickedAutoSession + this.shimmersClickedManualSession}`;
+
+            tooltip += `Shimmers clicked this session:<br>`;
+            tooltip += `&emsp;Auto: <b>${this.shimmersClickedAutoSession}</b><br>`;
+            tooltip += `&emsp;Manual: <b>${this.shimmersClickedManualSession}</b><br><br>`;
+            tooltip += `Total shimmers clicked:<br>`;
+            tooltip += `&emsp;Auto: <b>${this.shimmersClickedAutoTotal}</b><br>`;
+            tooltip += `&emsp;Manual: <b>${this.shimmersClickedManualTotal}</b>`;
+        }
+
+        tooltip += `</div>`;
+        Game.attachTooltip(l('autoShimmers_ShimmersClicked'), tooltip, 'this');
+
+        if (this.shouldAutoAccept) l('autoShimmers_ShimmersClicked').style.color = '#73ff73';
+        else l('autoShimmers_ShimmersClicked').style.color = '';
+    }
 });

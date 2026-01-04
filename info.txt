@@ -6,7 +6,7 @@
 	"ModVersion": 1.2,
 	"GameVersion": 2.053,
 	"Date": "01/01/2026",
-	"Dependencies": [],
+	"Dependencies": ["utilize"],
 	"Disabled": 1,
 	"AllowSteamAchievs": true
 }
