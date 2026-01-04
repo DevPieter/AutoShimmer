@@ -1,4 +1,5 @@
 // new Game.shimmer('golden',{type:'cookie storm drop'},1);
+// new Game.shimmer('golden',{wrath:1},1);
 // Game.gainBuff('click frenzy',Math.ceil(13),777)
 
 Game.registerMod("auto shimmer", {
@@ -13,7 +14,9 @@ Game.registerMod("auto shimmer", {
         this._configSuccessfullyLoaded = false;
 
         this.shouldNotify = true;
+        this.shouldNotifyWrath = true;
         this.shouldAutoAccept = false;
+        this.shouldAcceptWrath = false;
 
         this.shimmersClickedAutoTotal = 0;
         this.shimmersClickedAutoSession = 0;
@@ -28,21 +31,39 @@ Game.registerMod("auto shimmer", {
         if (utilize) utilize.subscribeToMenu((block, menu) => {
             const category = utilize.writeCategoryBlock(block, 'Auto Shimmer');
 
-            if (!this._legitMode) utilize.writeButton(
+            utilize.writeButton(
                 category,
-                'autoShimmers_AutoAccept',
-                'Auto-accept',
-                () => this.shouldAutoAccept,
-                () => this.setAutoAccept(!this.shouldAutoAccept)
+                'autoShimmers_Notifications',
+                'Notify on shimmer',
+                () => this.shouldNotify,
+                () => this.shouldNotify = !this.shouldNotify
             );
 
             utilize.writeButton(
                 category,
-                'autoShimmers_Notifications',
-                'Notifications',
-                () => this.shouldNotify,
-                () => this.shouldNotify = !this.shouldNotify
+                'autoShimmers_NotificationsWrath',
+                'Notify on wrath',
+                () => this.shouldNotifyWrath,
+                () => this.shouldNotifyWrath = !this.shouldNotifyWrath
             );
+
+            if (!this._legitMode) {
+                utilize.writeButton(
+                    category,
+                    'autoShimmers_AutoAccept',
+                    'Auto-accept',
+                    () => this.shouldAutoAccept,
+                    () => this.setAutoAccept(!this.shouldAutoAccept)
+                );
+
+                utilize.writeButton(
+                    category,
+                    'autoShimmers_AcceptWrath',
+                    'Auto-accept wrath',
+                    () => this.shouldAcceptWrath,
+                    () => this.shouldAcceptWrath = !this.shouldAcceptWrath
+                );
+            }
         });
 
         this.initShimmerDisplay();
@@ -56,7 +77,9 @@ Game.registerMod("auto shimmer", {
             // Settings
             se: {
                 sn: this.shouldNotify,
-                saa: this.shouldAutoAccept
+                snw: this.shouldNotifyWrath,
+                saa: this.shouldAutoAccept,
+                saw: this.shouldAcceptWrath
             },
 
             // Statistics
@@ -123,7 +146,9 @@ Game.registerMod("auto shimmer", {
 
         if (obj.se) {
             this.shouldNotify = obj.se.sn !== undefined ? obj.se.sn : true;
+            this.shouldNotifyWrath = obj.se.snw !== undefined ? obj.se.snw : true;
             this.shouldAutoAccept = obj.se.saa !== undefined ? obj.se.saa : true;
+            this.shouldAcceptWrath = obj.se.saw !== undefined ? obj.se.saw : false;
         }
 
         this.shouldAutoAccept = this.shouldAutoAccept && !this._legitMode;
@@ -145,17 +170,25 @@ Game.registerMod("auto shimmer", {
 
         Game.shimmer.prototype.init = function () {
             const result = MOD._prototypeInit.apply(this, arguments);
-            if (MOD.shouldNotify) {
+
+            if (!this.wrath && MOD.shouldNotify) {
                 PlaySound('snd/choir.mp3', 1);
                 Game.Notify("Auto Shimmer", "A shimmer appeared!", [16, 5], 3, true);
             }
 
-            if (MOD.shouldAutoAccept) setTimeout(() => {
-                if (!Game.shimmers.includes(this)) return;
+            if (this.wrath && MOD.shouldNotifyWrath) {
+                PlaySound('snd/choir.mp3', 1);
+                Game.Notify("Auto Shimmer", "A wrath shimmer appeared!", [16, 5], 3, true);
+            }
 
-                this.autoPopped = true;
-                this.pop();
-            }, 1000);
+            if (MOD.shouldAutoAccept && (!this.wrath || MOD.shouldAcceptWrath)) {
+                setTimeout(() => {
+                    if (!Game.shimmers.includes(this)) return;
+
+                    this.autoPopped = true;
+                    this.pop();
+                }, 1000);
+            }
 
             return result;
         };
